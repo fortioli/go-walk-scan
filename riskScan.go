@@ -6,7 +6,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 )
 
@@ -217,15 +216,6 @@ func trimDownResults(results []FileResult) []FileResult {
 	}
 
 	return trimmedResults[:]
-}
-
-// Gets the directory from an absolute path
-func getDir(path string) string {
-	splitString := strings.Split(path, string(os.PathSeparator))
-	everythingButTheFileName := splitString[:1]
-	var dir string
-	strings.Join(everythingButTheFileName, string(os.PathSeparator))
-	return dir
 }
 
 // Write the DirResultStructure to the output file
