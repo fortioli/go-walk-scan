@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"time"
@@ -104,22 +105,51 @@ func assessDirNameLength(path string) float64 {
 }
 
 // Assess the risk of a directory
-func assessDirRisk(path string, info fs.FileInfo, err error) []FileResult {
+func assessDirRisk(path string) []FileResult {
 
-	var result []FileResult
+	var finalResult, currentDirResults []FileResult
 
-	if nil == err {
-		// If the file size is lower than 1 KB ignore it.
-		if info.Size() > 1000 {
-			// fmt.Printf("Assessing: %v\n", path)
-			var fileResult FileResult
-			fileResult.Path, _ = filepath.Abs(path)
-			fullRisk := assessFileRisk(path, info) + assessDirNameLength(path)
-			fileResult.Risk = checkRiskRange(fullRisk)
-			result = append(result, fileResult)
+	dirs, errReadDir := ioutil.ReadDir(path)
+	if errReadDir == nil {
+		fmt.Printf("Seen %v entries, first one being %v\n", len(dirs), dirs[0])
+		for _, dir := range dirs {
+
+			absName := path + string(os.PathSeparator) + dir.Name()
+
+			fileInfo, errLstat := os.Lstat(absName)
+
+			if errLstat == nil {
+				if fileInfo.IsDir() {
+					dirResults := assessDirRisk(absName)
+					for _, res := range dirResults {
+						finalResult = append(finalResult, res)
+					}
+				} else {
+					fmt.Printf("Ready to assess a file: %v\n", absName)
+					// If the file size is lower than 1 KB ignore it.
+					if fileInfo.Size() > 1000 {
+						// fmt.Printf("Assessing: %v\n", path)
+						var fileResult FileResult
+						fileResult.Path = absName
+						fullRisk := assessFileRisk(path, fileInfo) + assessDirNameLength(path)
+						fileResult.Risk = checkRiskRange(fullRisk)
+						currentDirResults = append(currentDirResults, fileResult)
+					}
+				}
+			} else {
+				fmt.Printf("Error occured while getting file info: %v\n", errLstat)
+			}
 		}
+	} else {
+		fmt.Printf("Error occured while list dirs: %v\n", errReadDir)
 	}
-	return result
+
+	// Trim down to 10 files for this dir, keeping the subdirs intact
+	for _, res := range trimDownResults(currentDirResults) {
+		finalResult = append(finalResult, res)
+	}
+
+	return finalResult
 }
 
 /*
@@ -253,29 +283,9 @@ func main() {
 	absoluteDir, _ := filepath.Abs(rootDir)
 	finalResult.Dir = absoluteDir
 
-	var currentResults []FileResult
-
-	// We use Walk instead of WalkDir because we are going to need the FileInfo at every step.
-	filepath.Walk(rootDir, func(path string, info fs.FileInfo, err error) error {
-		if info.IsDir() {
-			// We assume here that once we change dir here we have seen all the files in the previous dir
-			// So we save the results for the current directory, but only the 10 most risky
-			for _, r := range trimDownResults(currentResults) {
-				finalResult.Results = append(finalResult.Results, r)
-			}
-			currentResults = nil
-		} else {
-			dirResult := assessDirRisk(path, info, err)
-			for _, r := range dirResult {
-				currentResults = append(currentResults, r)
-			}
-		}
-		return nil
-	})
-
-	// Final save after ending the walk
-	for _, r := range trimDownResults(currentResults) {
-		finalResult.Results = append(finalResult.Results, r)
+	dirResults := assessDirRisk(absoluteDir)
+	for _, res := range dirResults {
+		finalResult.Results = append(finalResult.Results, res)
 	}
 
 	// TODO probably better to check if file exists or not
