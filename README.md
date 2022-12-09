@@ -10,3 +10,4 @@ My first go program, made to learn the language.
 - Some optimisations can probably be made as some of the implementations are pretty naive.
 - Error-handling is also incomplete.
 - I read about Go routines but didn't implement them yet. It would make the Walk more efficient.
+- The project could benefit  from some cleanup and organisation by splitting in multiple files.
