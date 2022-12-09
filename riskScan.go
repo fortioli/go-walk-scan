@@ -111,7 +111,6 @@ func assessDirRisk(path string) []FileResult {
 
 	dirs, errReadDir := ioutil.ReadDir(path)
 	if errReadDir == nil {
-		fmt.Printf("Seen %v entries, first one being %v\n", len(dirs), dirs[0])
 		for _, dir := range dirs {
 
 			absName := path + string(os.PathSeparator) + dir.Name()
@@ -125,7 +124,6 @@ func assessDirRisk(path string) []FileResult {
 						finalResult = append(finalResult, res)
 					}
 				} else {
-					fmt.Printf("Ready to assess a file: %v\n", absName)
 					// If the file size is lower than 1 KB ignore it.
 					if fileInfo.Size() > 1000 {
 						// fmt.Printf("Assessing: %v\n", path)
